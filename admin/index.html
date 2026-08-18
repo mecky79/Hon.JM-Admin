@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard — Vanguard 2027</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="./css/admin.css">
+    <style>
+        #post-content {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: var(--font-main);
+            color: var(--text);
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+        #post-content:focus {
+            border-color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ADMIN LOGIN SCREEN -->
+    <div class="admin-login" id="admin-login">
+        <div class="login-box">
+            <h2><i class="fa-solid fa-house-lock" style="color: var(--primary);"></i> Campaign Admin</h2>
+            <p>Authorized personnel only</p>
+            <div class="form-group">
+                <label for="admin-username">Email Address</label>
+                <input type="email" id="admin-username" placeholder="admin@dcpskizawakenya.co.ke">
+            </div>
+            <div class="form-group">
+                <label for="admin-password">Password</label>
+                <input type="password" id="admin-password" placeholder="Enter password">
+            </div>
+            <button class="btn-primary" id="admin-login-btn">Login</button>
+            <p class="form-feedback" id="login-feedback"></p>
+        </div>
+    </div>
+
+    <!-- ADMIN DASHBOARD — hidden until login -->
+    <div class="admin-dashboard" id="admin-dashboard" style="display:none;">
+
+        <!-- ADMIN NAVBAR -->
+        <nav class="admin-navbar">
+            <div class="nav-logo">
+                <img src="../assets/images/logo.png" alt="DCP Logo">
+                Vanguard — Admin
+            </div>
+            <div class="admin-nav-right">
+                <span id="admin-time"></span>
+                <button class="btn-logout" id="logout-btn">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+        </nav>
+
+        <!-- STATS CARDS -->
+        <section class="admin-stats">
+            <div class="stat-card">
+                <h3 id="stat-total">0</h3>
+                <p>Total Supporters</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="stat-voters">0</h3>
+                <p>Committed Voters</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="stat-volunteers">0</h3>
+                <p>Volunteers</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="stat-agents">0</h3>
+                <p>Ward Agents</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="stat-mobilizers">0</h3>
+                <p>Mobilizers</p>
+            </div>
+        </section>
+
+        <!-- TAB NAVIGATION -->
+        <div class="admin-tabs">
+            <button class="admin-tab active" data-tab="supporters">
+                <i class="fa-solid fa-users"></i> Supporters
+            </button>
+            <button class="admin-tab" data-tab="members">
+                <i class="fa-solid fa-people-group"></i> Team Members
+            </button>
+            <button class="admin-tab" data-tab="attendance">
+                <i class="fa-solid fa-clipboard-check"></i> Attendance
+            </button>
+            <button class="admin-tab" data-tab="news">
+                <i class="fa-solid fa-newspaper"></i> News & Posts
+            </button>
+            <button class="admin-tab" data-tab="contacts">
+                <i class="fa-solid fa-envelope"></i> Contact Inquiries
+            </button>
+        </div>
+
+        <!-- ======================== -->
+        <!-- TAB 1 — SUPPORTERS      -->
+        <!-- ======================== -->
+        <div class="tab-section" id="tab-supporters">
+
+            <section class="admin-controls">
+                <div class="controls-left">
+                    <div class="search-wrapper">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="search-input"
+                            placeholder="Search by name or phone...">
+                    </div>
+                    <select id="ward-filter">
+                        <option value="all">All Wards</option>
+                        <optgroup label="Gatundu South">
+                            <option value="Kiamwangi">Kiamwangi</option>
+                            <option value="Kiganjo">Kiganjo</option>
+                            <option value="Ndarugu">Ndarugu</option>
+                            <option value="Ngenda">Ngenda</option>
+                        </optgroup>
+                        <optgroup label="Gatundu North">
+                            <option value="Gituamba">Gituamba</option>
+                            <option value="Githobokoni">Githobokoni</option>
+                            <option value="Chania">Chania</option>
+                            <option value="Mang'u">Mang'u</option>
+                        </optgroup>
+                        <optgroup label="Juja">
+                            <option value="Murera">Murera</option>
+                            <option value="Theta">Theta</option>
+                            <option value="Juja">Juja</option>
+                            <option value="Witeithie">Witeithie</option>
+                            <option value="Kalimoni">Kalimoni</option>
+                        </optgroup>
+                        <optgroup label="Thika Town">
+                            <option value="Township">Township</option>
+                            <option value="Kamenu">Kamenu</option>
+                            <option value="Hospital">Hospital</option>
+                            <option value="Gatuanyaga">Gatuanyaga</option>
+                            <option value="Ngoliba">Ngoliba</option>
+                        </optgroup>
+                        <optgroup label="Ruiru">
+                            <option value="Gitothua">Gitothua</option>
+                            <option value="Biashara">Biashara</option>
+                            <option value="Gatongora">Gatongora</option>
+                            <option value="Kahawa Sukari">Kahawa Sukari</option>
+                            <option value="Kahawa Wendani">Kahawa Wendani</option>
+                            <option value="Kiuu">Kiuu</option>
+                            <option value="Mwihoko">Mwihoko</option>
+                            <option value="Mwiki">Mwiki</option>
+                        </optgroup>
+                        <optgroup label="Githunguri">
+                            <option value="Githunguri">Githunguri</option>
+                            <option value="Githiga">Githiga</option>
+                            <option value="Ikinu">Ikinu</option>
+                            <option value="Ngewa">Ngewa</option>
+                            <option value="Komothai">Komothai</option>
+                        </optgroup>
+                        <optgroup label="Kiambu">
+                            <option value="Ting'ang'a">Ting'ang'a</option>
+                            <option value="Ndumberi">Ndumberi</option>
+                            <option value="Riabai">Riabai</option>
+                            <option value="Kiambu Township">Kiambu Township</option>
+                        </optgroup>
+                        <optgroup label="Kiambaa">
+                            <option value="Cianda">Cianda</option>
+                            <option value="Karuri">Karuri</option>
+                            <option value="Ndenderu">Ndenderu</option>
+                            <option value="Muchatha">Muchatha</option>
+                            <option value="Kihara">Kihara</option>
+                        </optgroup>
+                        <optgroup label="Kabete">
+                            <option value="Gitaru">Gitaru</option>
+                            <option value="Muguga">Muguga</option>
+                            <option value="Nyathuna">Nyathuna</option>
+                            <option value="Kabete">Kabete</option>
+                            <option value="Uthiru">Uthiru</option>
+                        </optgroup>
+                        <optgroup label="Kikuyu">
+                            <option value="Karai">Karai</option>
+                            <option value="Nachu">Nachu</option>
+                            <option value="Sigona">Sigona</option>
+                            <option value="Kikuyu">Kikuyu</option>
+                            <option value="Kinoo">Kinoo</option>
+                        </optgroup>
+                        <optgroup label="Limuru">
+                            <option value="Bibirioni">Bibirioni</option>
+                            <option value="Limuru Central">Limuru Central</option>
+                            <option value="Ndeiya">Ndeiya</option>
+                            <option value="Limuru East">Limuru East</option>
+                            <option value="Ngecha Tigoni">Ngecha Tigoni</option>
+                        </optgroup>
+                        <optgroup label="Lari">
+                            <option value="Kinale">Kinale</option>
+                            <option value="Kijabe">Kijabe</option>
+                            <option value="Nyanduma">Nyanduma</option>
+                            <option value="Kamburu">Kamburu</option>
+                            <option value="Lari/Kirenga">Lari/Kirenga</option>
+                        </optgroup>
+                    </select>
+                    <select id="role-filter">
+                        <option value="all">All Roles</option>
+                        <option value="voter">Voters</option>
+                        <option value="volunteer">Volunteers</option>
+                        <option value="agent">Ward Agents</option>
+                        <option value="mobilizer">Mobilizers</option>
+                    </select>
+                </div>
+                <div class="controls-right">
+                    <button class="btn-secondary" id="export-btn">
+                        <i class="fa-solid fa-file-export"></i> Export CSV
+                    </button>
+                    <button class="btn-primary" id="refresh-btn">
+                        <i class="fa-solid fa-rotate"></i> Refresh
+                    </button>
+                </div>
+            </section>
+
+            <section class="admin-table-section">
+                <div class="table-wrapper">
+                    <table class="supporters-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Full Name</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                                <th>Ward</th>
+                                <th>Role</th>
+                                <th>Registered</th>
+                            </tr>
+                        </thead>
+                        <tbody id="supporters-tbody"></tbody>
+                    </table>
+                    <p class="no-data" id="no-data-msg" style="display:none;">
+                        No supporters found.
+                    </p>
+                </div>
+            </section>
+
+            <section class="ward-breakdown">
+                <h2>Supporters By Ward</h2>
+                <div class="ward-grid" id="ward-grid"></div>
+            </section>
+
+        </div>
+
+        <!-- ======================== -->
+        <!-- TAB 2 — TEAM MEMBERS    -->
+        <!-- ======================== -->
+        <div class="tab-section" id="tab-members" style="display:none;">
+
+            <section class="admin-form-section">
+                <h2><i class="fa-solid fa-user-plus"></i> Add Team Member</h2>
+                <div class="admin-form-grid">
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" id="member-name" placeholder="Full name">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone Number *</label>
+                        <input type="tel" id="member-phone" placeholder="07XX XXX XXX">
+                    </div>
+                    <div class="form-group">
+                        <label>Role / Title *</label>
+                        <input type="text" id="member-role"
+                            placeholder="e.g. Ward Coordinator, County Director">
+                    </div>
+                    <div class="form-group">
+                        <label>Level *</label>
+                        <select id="member-level">
+                            <option value="">Select level</option>
+                            <option value="national">President / Deputy</option>
+                            <option value="secretariat">Secretary General / Deputy</option>
+                            <option value="COS">Chief of Staff / Deputy</option>
+                            <option value="OS">Organizing Secretary / Deputy</option>
+                            <option value="registrar">Registrar / Deputy</option>
+                            <option value="county">County Director</option>
+                            <option value="subcounty">Sub-County Coordinator</option>
+                            <option value="ward">Ward Coordinator</option>
+                            <option value="agent">Ward Agent</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Assigned Area</label>
+                        <input type="text" id="member-area"
+                            placeholder="Sub-county or ward name (if applicable)">
+                    </div>
+                </div>
+                <button class="btn-primary" id="add-member-btn">
+                    <i class="fa-solid fa-plus"></i> Add Member
+                </button>
+                <p class="form-feedback" id="member-feedback"></p>
+            </section>
+
+            <section class="admin-table-section">
+                <h2><i class="fa-solid fa-people-group"></i> All Team Members</h2>
+                <div class="table-wrapper">
+                    <table class="supporters-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Full Name</th>
+                                <th>Phone</th>
+                                <th>Role / Title</th>
+                                <th>Assigned Area</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="members-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- ======================== -->
+        <!-- TAB 3 — ATTENDANCE      -->
+        <!-- ======================== -->
+        <div class="tab-section" id="tab-attendance" style="display:none;">
+
+            <section class="admin-form-section">
+                <h2><i class="fa-solid fa-calendar-plus"></i> Create New Meeting</h2>
+                <div class="admin-form-grid">
+                    <div class="form-group">
+                        <label>Meeting Title *</label>
+                        <input type="text" id="meeting-title"
+                            placeholder="e.g. Monthly Strategy Meeting">
+                    </div>
+                    <div class="form-group">
+                        <label>Location *</label>
+                        <input type="text" id="meeting-location"
+                            placeholder="e.g. DCP Headquarters, Nairobi">
+                    </div>
+                    <div class="form-group">
+                        <label>Date *</label>
+                        <input type="date" id="meeting-date">
+                    </div>
+                </div>
+                <button class="btn-primary" id="create-meeting-btn">
+                    <i class="fa-solid fa-plus"></i> Create Meeting
+                </button>
+                <p class="form-feedback" id="meeting-feedback"></p>
+            </section>
+
+            <section class="admin-form-section">
+                <h2><i class="fa-solid fa-list-check"></i> All Meetings</h2>
+                <p style="color:#666; margin-bottom:20px;">
+                    Click any meeting below to take or view attendance.
+                </p>
+                <div id="meetings-list"></div>
+            </section>
+
+            <!-- ANALYTICS TOGGLE BUTTON -->
+            <section class="admin-form-section">
+                <button class="btn-analytics-toggle" id="analytics-toggle-btn">
+                    <i class="fa-solid fa-chart-bar"></i> View Team Analytics
+                    <i class="fa-solid fa-chevron-down" id="analytics-chevron"></i>
+                </button>
+            </section>
+
+            <!-- TEAM ANALYTICS SECTION -->
+            <section class="admin-form-section" id="team-analytics" style="display:none;">
+                <h2><i class="fa-solid fa-chart-bar"></i> Team Attendance Analytics</h2>
+                <p style="color:#666; margin-bottom:20px;">
+                    Overall attendance record across all meetings, sorted by performance.
+                </p>
+                <div class="analytics-search-wrapper">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="analytics-search"
+                        placeholder="Search member by name or role...">
+                </div>
+                <div class="analytics-summary" id="analytics-summary"></div>
+                <div class="table-wrapper" style="margin-top:24px;">
+                    <table class="supporters-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Full Name</th>
+                                <th>Role / Title</th>
+                                <th>Level</th>
+                                <th>Meetings Held</th>
+                                <th>Present</th>
+                                <th>Absent</th>
+                                <th>Not Marked</th>
+                                <th>Attendance %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="analytics-tbody"></tbody>
+                    </table>
+                    <p class="no-data" id="analytics-no-data" style="display:none;">
+                        No analytics data yet. Create meetings and take attendance first.
+                    </p>
+                </div>
+            </section>
+
+            <!-- ATTENDANCE REGISTER -->
+            <section class="admin-form-section"
+                id="attendance-register" style="display:none;">
+                <h2 id="attendance-title">Attendance Register</h2>
+                <select id="attendance-meeting-select" style="display:none;">
+                    <option value="">Select a meeting</option>
+                </select>
+                <div id="attendance-list"></div>
+            </section>
+
+        </div>
+
+        <!-- ======================== -->
+        <!-- TAB 4 — NEWS & POSTS    -->
+        <!-- ======================== -->
+        <div class="tab-section" id="tab-news" style="display:none;">
+
+            <section class="admin-form-section">
+                <h2><i class="fa-solid fa-pen-to-square"></i> Create New Post</h2>
+                <div class="admin-form-grid">
+                    <div class="form-group">
+                        <label>Post Title *</label>
+                        <input type="text" id="post-title"
+                            placeholder="e.g. Kiongozi Launches Youth Fund">
+                    </div>
+                    <div class="form-group">
+                        <label>Category *</label>
+                        <select id="post-category">
+                            <option value="">Select category</option>
+                            <option value="Campaign Update">Campaign Update</option>
+                            <option value="Rally">Rally</option>
+                            <option value="Endorsement">Endorsement</option>
+                            <option value="Statement">Statement</option>
+                            <option value="Event">Event</option>
+                            <option value="Milestone">Milestone</option>
+                            <option value="Media">Media</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Post Date *</label>
+                        <input type="date" id="post-date">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Content *</label>
+                    <textarea id="post-content" rows="6"
+                        placeholder="Write the full post content here..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Post Image (WebP only)</label>
+                    <div class="image-upload-wrapper">
+                        <input type="file" id="post-image" accept=".webp">
+                        <div class="image-preview" id="image-preview">
+                            <i class="fa-solid fa-image"></i>
+                            <p>Click to select a WebP image</p>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn-primary" id="create-post-btn">
+                    <i class="fa-solid fa-plus"></i> Publish Post
+                </button>
+                <p class="form-feedback" id="post-feedback"></p>
+            </section>
+
+            <section class="admin-form-section">
+                <h2><i class="fa-solid fa-newspaper"></i> All Posts</h2>
+                <div id="admin-posts-list"></div>
+            </section>
+
+            <section class="admin-form-section" id="admin-comments-section" style="display:none;">
+                <h2><i class="fa-solid fa-comments"></i> Comments — <span id="comments-post-title"></span></h2>
+                <div id="admin-comments-list"></div>
+            </section>
+
+        </div>
+
+    </div>
+
+    <!-- ======================== -->
+        <!-- TAB 5 — CONTACTS        -->
+        <!-- ======================== -->
+        <div class="tab-section" id="tab-contacts" style="display:none;">
+
+            <!-- STATS -->
+            <section class="admin-stats" style="padding: 24px 40px;">
+                <div class="stat-card">
+                    <h3 id="contact-stat-total">0</h3>
+                    <p>Total Inquiries</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="contact-stat-unread">0</h3>
+                    <p>Unread</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="contact-stat-read">0</h3>
+                    <p>Read</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="contact-stat-resolved">0</h3>
+                    <p>Resolved</p>
+                </div>
+            </section>
+
+            <!-- CONTROLS -->
+            <section class="admin-controls">
+                <div class="controls-left">
+                    <div class="search-wrapper">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="contact-search"
+                            placeholder="Search by name or email...">
+                    </div>
+                    <select id="contact-status-filter">
+                        <option value="all">All Inquiries</option>
+                        <option value="unread">Unread</option>
+                        <option value="read">Read</option>
+                        <option value="resolved">Resolved</option>
+                    </select>
+                    <select id="contact-subject-filter">
+                        <option value="all">All Subjects</option>
+                        <option value="Media & Press Inquiry">Media & Press</option>
+                        <option value="Partnership Proposal">Partnership</option>
+                        <option value="Volunteering">Volunteering</option>
+                        <option value="General Inquiry">General</option>
+                    </select>
+                </div>
+                <div class="controls-right">
+                    <button class="btn-primary" id="refresh-contacts-btn">
+                        <i class="fa-solid fa-rotate"></i> Refresh
+                    </button>
+                </div>
+            </section>
+
+            <!-- CONTACTS LIST -->
+            <section class="admin-form-section">
+                <div id="contacts-list"></div>
+            </section>
+
+            <!-- CONTACT DETAIL VIEW -->
+            <div class="modal-overlay" id="contact-detail-modal" style="display:none;">
+                <div class="modal-box" style="max-width: 640px;">
+                    <div class="modal-header">
+                        <h2><i class="fa-solid fa-envelope-open"></i> <span id="modal-contact-subject"></span></h2>
+                        <button class="modal-close" id="close-contact-modal">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="contact-detail-meta">
+                            <p><i class="fa-solid fa-user"></i> <span id="modal-contact-name"></span></p>
+                            <p><i class="fa-solid fa-envelope"></i> <span id="modal-contact-email"></span></p>
+                            <p><i class="fa-solid fa-phone"></i> <span id="modal-contact-phone"></span></p>
+                            <p><i class="fa-regular fa-calendar"></i> <span id="modal-contact-date"></span></p>
+                        </div>
+                        <div class="contact-detail-message">
+                            <h3>Message</h3>
+                            <p id="modal-contact-message"></p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-delete" id="delete-contact-btn">
+                            <i class="fa-solid fa-trash"></i> Delete
+                        </button>
+                        <button class="btn-secondary" id="mark-read-btn">
+                            <i class="fa-solid fa-envelope-open"></i> Mark as Read
+                        </button>
+                        <button class="btn-primary" id="mark-resolved-btn">
+                            <i class="fa-solid fa-circle-check"></i> Mark as Resolved
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    <!-- EDIT MEMBER MODAL -->
+    <div class="modal-overlay" id="edit-member-modal" style="display:none;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-user-pen"></i> Edit Team Member</h2>
+                <button class="modal-close" id="close-member-modal">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-member-id">
+                <div class="form-group">
+                    <label>Full Name *</label>
+                    <input type="text" id="edit-member-name" placeholder="Full name">
+                </div>
+                <div class="form-group">
+                    <label>Phone Number *</label>
+                    <input type="tel" id="edit-member-phone" placeholder="07XX XXX XXX">
+                </div>
+                <div class="form-group">
+                    <label>Role / Title *</label>
+                    <input type="text" id="edit-member-role"
+                        placeholder="e.g. Ward Coordinator">
+                </div>
+                <div class="form-group">
+                    <label>Level *</label>
+                    <select id="edit-member-level">
+                        <option value="">Select level</option>
+                        <option value="national">President / Deputy</option>
+                        <option value="secretariat">Secretary General / Deputy</option>
+                        <option value="COS">Chief of Staff / Deputy</option>
+                        <option value="OS">Organizing Secretary / Deputy</option>
+                        <option value="registrar">Registrar / Deputy</option>
+                        <option value="county">County Director</option>
+                        <option value="subcounty">Sub-County Coordinator</option>
+                        <option value="ward">Ward Coordinator</option>
+                        <option value="agent">Ward Agent</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Assigned Area</label>
+                    <input type="text" id="edit-member-area"
+                        placeholder="Sub-county or ward name">
+                </div>
+                <p class="form-feedback" id="edit-member-feedback"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="close-member-modal-btn">Cancel</button>
+                <button class="btn-primary" id="save-member-btn">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT MEETING MODAL -->
+    <div class="modal-overlay" id="edit-meeting-modal" style="display:none;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-calendar-pen"></i> Edit Meeting</h2>
+                <button class="modal-close" id="close-meeting-modal">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-meeting-id">
+                <div class="form-group">
+                    <label>Meeting Title *</label>
+                    <input type="text" id="edit-meeting-title"
+                        placeholder="e.g. Monthly Strategy Meeting">
+                </div>
+                <div class="form-group">
+                    <label>Location *</label>
+                    <input type="text" id="edit-meeting-location"
+                        placeholder="e.g. DCP Headquarters, Nairobi">
+                </div>
+                <div class="form-group">
+                    <label>Date *</label>
+                    <input type="date" id="edit-meeting-date">
+                </div>
+                <p class="form-feedback" id="edit-meeting-feedback"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="close-meeting-modal-btn">Cancel</button>
+                <button class="btn-primary" id="save-meeting-btn">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./js/admin.js"></script>
+</body>
+</html>
