@@ -157,8 +157,8 @@ async function initDashboard() {
     await loadMeetings()
     await loadPosts()
     await loadContacts()
+    await loadSurveys()
 }
-
 // ============================================
 // TAB 1 — SUPPORTERS
 // ============================================
@@ -343,6 +343,21 @@ document.getElementById('add-member-btn').addEventListener('click', async () => 
     }
 
     try {
+        // Check for duplicate by phone number
+        const { data: existing, error: checkError } = await db
+            .from('members')
+            .select('id, full_name')
+            .eq('phone', phone)
+            .maybeSingle()
+
+        if (checkError) throw checkError
+
+        if (existing) {
+            feedback.style.color = '#dc3545'
+            feedback.textContent = `This member already exists — ${existing.full_name} is registered with this phone number.`
+            return
+        }
+
         const { error } = await db
             .from('members')
             .insert([{
@@ -357,7 +372,7 @@ document.getElementById('add-member-btn').addEventListener('click', async () => 
         if (error) throw error
 
         feedback.style.color = '#28a745'
-        feedback.innerHTML= 'Member added successfully <i class="fa-solid fa-school-circle-check" style="color: rgb(30, 216, 31);"></i>'
+        feedback.textContent = 'Member added successfully.'
 
         document.getElementById('member-name').value = ''
         document.getElementById('member-phone').value = ''
@@ -373,7 +388,6 @@ document.getElementById('add-member-btn').addEventListener('click', async () => 
         feedback.textContent = 'Something went wrong. Please try again.'
     }
 })
-
 function deleteMember(id) {
     if (!confirm('Are you sure you want to remove this member?')) return
 
@@ -1250,3 +1264,978 @@ window.deletePost = deletePost
 window.viewComments = viewComments
 window.deleteComment = deleteComment
 window.openContactDetail = openContactDetail
+
+// ============================================
+// TAB 5 — SURVEYS
+// Add these state variables near the top
+// of admin.js with existing state variables
+// ============================================
+let allSurveys = []
+let currentSurveyId = null
+let questionCounter = 0
+
+// ============================================
+// LOAD SURVEYS
+// ============================================
+async function loadSurveys() {
+    try {
+        const { data, error } = await db
+            .from('surveys')
+            .select('*, survey_questions(id), survey_responses(id)')
+            .order('created_at', { ascending: false })
+
+        if (error) throw error
+
+        allSurveys = data || []
+        renderSurveysList(allSurveys)
+
+    } catch (error) {
+        console.error('Load surveys error:', error)
+    }
+}
+
+// ============================================
+// RENDER SURVEYS LIST
+// ============================================
+function renderSurveysList(data) {
+    const list = document.getElementById('surveys-list')
+    if (!list) return
+
+    if (!data || data.length === 0) {
+        list.innerHTML = `
+            <p style="color:var(--text-light); padding:20px 0;">
+                No surveys created yet. Create your first survey above.
+            </p>
+        `
+        return
+    }
+
+    list.innerHTML = data.map(s => {
+        const questionCount = s.survey_questions ? s.survey_questions.length : 0
+        const responseCount = s.survey_responses ? s.survey_responses.length : 0
+        const isActive = s.status === 'active'
+
+        let targetLabel = 'Both'
+        if (s.target_level === 'ward') targetLabel = 'Ward Coordinators'
+        if (s.target_level === 'agent') targetLabel = 'Ward Agents'
+
+        return `
+            <div class="survey-card">
+                <div class="survey-card-header">
+                    <h3>${s.title}</h3>
+                    <span class="survey-status-badge ${s.status}">
+                        <i class="fa-solid fa-${isActive ? 'circle-check' : 'circle-xmark'}"></i>
+                        ${isActive ? 'Active' : 'Closed'}
+                    </span>
+                </div>
+                ${s.description ? `<p class="survey-card-description">${s.description}</p>` : ''}
+                <div class="survey-card-meta">
+                    <span>
+                        <i class="fa-solid fa-users"></i>
+                        ${targetLabel}
+                    </span>
+                    <span>
+                        <i class="fa-solid fa-list-ol"></i>
+                        ${questionCount} question${questionCount !== 1 ? 's' : ''}
+                    </span>
+                    <span>
+                        <i class="fa-solid fa-inbox"></i>
+                        ${responseCount} response${responseCount !== 1 ? 's' : ''}
+                    </span>
+                    <span>
+                        <i class="fa-regular fa-calendar"></i>
+                        ${new Date(s.created_at).toLocaleDateString('en-KE', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                        })}
+                    </span>
+                </div>
+                <div class="survey-card-actions">
+                    <button class="btn-edit" onclick="viewSurveyResults('${s.id}')">
+                        <i class="fa-solid fa-chart-bar"></i> View Results
+                    </button>
+                    ${isActive ? `
+                        <button class="btn-secondary" style="width:auto; padding:6px 14px; font-size:0.85rem;"
+                            onclick="closeSurvey('${s.id}')">
+                            <i class="fa-solid fa-lock"></i> Close Survey
+                        </button>
+                    ` : ''}
+                    <button class="btn-delete" onclick="deleteSurvey('${s.id}', ${responseCount})">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `
+    }).join('')
+}
+
+// ============================================
+// QUESTION BUILDER — ADD QUESTION
+// ============================================
+function addQuestion() {
+    questionCounter++
+    const index = questionCounter
+
+    const placeholder = document.getElementById('no-questions-placeholder')
+    if (placeholder) placeholder.style.display = 'none'
+
+    const container = document.getElementById('questions-container')
+    if (!container) return
+
+    const block = document.createElement('div')
+    block.className = 'question-block'
+    block.id = `question-block-${index}`
+
+    block.innerHTML = `
+        <div class="question-block-header">
+            <span class="question-number-badge">Q${index}</span>
+            <button class="btn-delete" onclick="deleteQuestion(${index})">
+                <i class="fa-solid fa-trash"></i>
+            </button>
+        </div>
+
+        <div class="form-group">
+            <label>Question Text *</label>
+            <input type="text" id="q-text-${index}"
+                placeholder="e.g. Has the opposition team campaigned in your zone today?">
+        </div>
+
+        <div class="question-block-meta">
+            <div class="form-group" style="flex:1;">
+                <label>Question Type *</label>
+                <select id="q-type-${index}" onchange="toggleQuestionType(${index})">
+                    <option value="yes_no">Yes / No</option>
+                    <option value="multiple_choice">Multiple Choice</option>
+                    <option value="rating">Rating (1 to 5)</option>
+                    <option value="text">Open Text</option>
+                </select>
+            </div>
+            <div class="form-group required-toggle">
+                <label>Required</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="q-required-${index}" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="question-options-area" id="q-options-${index}" style="display:none;">
+            <label>Answer Options (min 2, max 6)</label>
+            <div id="q-options-list-${index}">
+                <div class="option-row">
+                    <input type="text" placeholder="Option 1" class="option-input">
+                    <button class="btn-remove-option" onclick="removeChoiceOption(this, ${index})">
+                        <i class="fa-solid fa-minus"></i>
+                    </button>
+                </div>
+                <div class="option-row">
+                    <input type="text" placeholder="Option 2" class="option-input">
+                    <button class="btn-remove-option" onclick="removeChoiceOption(this, ${index})">
+                        <i class="fa-solid fa-minus"></i>
+                    </button>
+                </div>
+            </div>
+            <button class="btn-add-option" onclick="addChoiceOption(${index})">
+                <i class="fa-solid fa-plus"></i> Add Option
+            </button>
+        </div>
+    `
+
+    container.appendChild(block)
+}
+
+// ============================================
+// QUESTION BUILDER — TOGGLE TYPE
+// ============================================
+function toggleQuestionType(index) {
+    const typeSelect = document.getElementById(`q-type-${index}`)
+    const optionsArea = document.getElementById(`q-options-${index}`)
+    if (!typeSelect || !optionsArea) return
+
+    if (typeSelect.value === 'multiple_choice') {
+        optionsArea.style.display = 'block'
+    } else {
+        optionsArea.style.display = 'none'
+    }
+}
+
+// ============================================
+// QUESTION BUILDER — DELETE QUESTION
+// ============================================
+function deleteQuestion(index) {
+    const block = document.getElementById(`question-block-${index}`)
+    if (block) block.remove()
+
+    // Renumber remaining questions
+    const blocks = document.querySelectorAll('.question-block')
+    blocks.forEach((block, i) => {
+        const badge = block.querySelector('.question-number-badge')
+        if (badge) badge.textContent = `Q${i + 1}`
+    })
+
+    // Show placeholder if no questions left
+    if (blocks.length === 0) {
+        const placeholder = document.getElementById('no-questions-placeholder')
+        if (placeholder) placeholder.style.display = 'flex'
+    }
+}
+
+// ============================================
+// QUESTION BUILDER — ADD CHOICE OPTION
+// ============================================
+function addChoiceOption(index) {
+    const list = document.getElementById(`q-options-list-${index}`)
+    if (!list) return
+
+    const existing = list.querySelectorAll('.option-row').length
+    if (existing >= 6) {
+        alert('Maximum 6 options allowed.')
+        return
+    }
+
+    const row = document.createElement('div')
+    row.className = 'option-row'
+    row.innerHTML = `
+        <input type="text" placeholder="Option ${existing + 1}" class="option-input">
+        <button class="btn-remove-option" onclick="removeChoiceOption(this, ${index})">
+            <i class="fa-solid fa-minus"></i>
+        </button>
+    `
+    list.appendChild(row)
+}
+
+// ============================================
+// QUESTION BUILDER — REMOVE CHOICE OPTION
+// ============================================
+function removeChoiceOption(btn, index) {
+    const list = document.getElementById(`q-options-list-${index}`)
+    if (!list) return
+
+    const rows = list.querySelectorAll('.option-row')
+    if (rows.length <= 2) {
+        alert('Minimum 2 options required.')
+        return
+    }
+
+    btn.closest('.option-row').remove()
+}
+
+// ============================================
+// VALIDATE SURVEY FORM
+// ============================================
+function validateSurveyForm() {
+    const title = document.getElementById('survey-title').value.trim()
+    const targetLevel = document.getElementById('survey-target-level').value
+    const description = document.getElementById('survey-description').value.trim()
+    const feedback = document.getElementById('survey-create-feedback')
+
+    if (!title) {
+        feedback.style.color = '#dc3545'
+        feedback.textContent = 'Please enter a survey title.'
+        return false
+    }
+
+    if (!targetLevel) {
+        feedback.style.color = '#dc3545'
+        feedback.textContent = 'Please select a target audience.'
+        return false
+    }
+
+    const blocks = document.querySelectorAll('.question-block')
+    if (blocks.length === 0) {
+        feedback.style.color = '#dc3545'
+        feedback.textContent = 'Please add at least one question.'
+        return false
+    }
+
+    const questions = []
+    let valid = true
+
+    blocks.forEach((block, i) => {
+        const idMatch = block.id.match(/question-block-(\d+)/)
+        if (!idMatch) return
+        const index = idMatch[1]
+
+        const text = document.getElementById(`q-text-${index}`)?.value.trim()
+        const type = document.getElementById(`q-type-${index}`)?.value
+        const required = document.getElementById(`q-required-${index}`)?.checked
+
+        if (!text) {
+            feedback.style.color = '#dc3545'
+            feedback.textContent = `Question ${i + 1} is missing its text.`
+            valid = false
+            return
+        }
+
+        let options = null
+
+        if (type === 'multiple_choice') {
+            const optionInputs = document.querySelectorAll(`#q-options-list-${index} .option-input`)
+            const optionValues = Array.from(optionInputs)
+                .map(inp => inp.value.trim())
+                .filter(v => v !== '')
+
+            if (optionValues.length < 2) {
+                feedback.style.color = '#dc3545'
+                feedback.textContent = `Question ${i + 1} needs at least 2 answer options.`
+                valid = false
+                return
+            }
+
+            options = JSON.stringify(optionValues)
+        }
+
+        questions.push({
+            question_text: text,
+            question_type: type,
+            required: required,
+            options: options,
+            order_index: i + 1
+        })
+    })
+
+    if (!valid) return false
+
+    return { title, description, targetLevel, questions }
+}
+
+// ============================================
+// PUBLISH SURVEY
+// ============================================
+async function publishSurvey() {
+    const feedback = document.getElementById('survey-create-feedback')
+    feedback.textContent = ''
+
+    const formData = validateSurveyForm()
+    if (!formData) return
+
+    const publishBtn = document.getElementById('publish-survey-btn')
+    publishBtn.disabled = true
+    publishBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Publishing...'
+
+    try {
+        // Insert survey
+        const { data: surveyData, error: surveyError } = await db
+            .from('surveys')
+            .insert([{
+                title: formData.title,
+                description: formData.description || null,
+                target_level: formData.targetLevel,
+                status: 'active'
+            }])
+            .select()
+            .single()
+
+        if (surveyError) throw surveyError
+
+        const surveyId = surveyData.id
+
+        // Insert questions
+        const questionsToInsert = formData.questions.map(q => ({
+            ...q,
+            survey_id: surveyId
+        }))
+
+        const { error: questionsError } = await db
+            .from('survey_questions')
+            .insert(questionsToInsert)
+
+        if (questionsError) throw questionsError
+
+        // Fetch eligible members based on target level
+        let levelFilter = []
+        if (formData.targetLevel === 'ward') levelFilter = ['ward']
+        if (formData.targetLevel === 'agent') levelFilter = ['agent']
+        if (formData.targetLevel === 'both') levelFilter = ['ward', 'agent']
+
+        const { data: members, error: membersError } = await db
+            .from('members')
+            .select('id, full_name, phone, level')
+            .in('level', levelFilter)
+
+        if (membersError) throw membersError
+
+        // Show OTP dispatch modal
+        const modal = document.getElementById('otp-dispatch-modal')
+        if (modal) modal.style.display = 'flex'
+
+        // Dispatch OTPs
+        await dispatchOtpsToMembers(surveyId, members || [])
+
+        // Clear form
+        document.getElementById('survey-title').value = ''
+        document.getElementById('survey-description').value = ''
+        document.getElementById('survey-target-level').value = ''
+        document.getElementById('questions-container').innerHTML = `
+            <div class="no-questions-placeholder" id="no-questions-placeholder">
+                <i class="fa-solid fa-circle-info"></i>
+                Click "Add Question" to start building your survey.
+            </div>
+        `
+        questionCounter = 0
+
+        feedback.style.color = '#28a745'
+        feedback.textContent = 'Survey published successfully.'
+
+        await loadSurveys()
+
+    } catch (error) {
+        console.error('Publish survey error:', error)
+        feedback.style.color = '#dc3545'
+        feedback.textContent = 'Something went wrong. Please try again.'
+    } finally {
+        publishBtn.disabled = false
+        publishBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Publish Survey & Send OTPs'
+    }
+}
+
+// ============================================
+// DISPATCH OTPs TO MEMBERS
+// ============================================
+async function dispatchOtpsToMembers(surveyId, members) {
+    const progressBar = document.getElementById('otp-dispatch-progress-bar')
+    const counter = document.getElementById('otp-dispatch-counter')
+    const summary = document.getElementById('otp-dispatch-summary')
+    const footer = document.getElementById('otp-dispatch-footer')
+
+    const total = members.length
+    let sent = 0
+    let failed = 0
+
+    if (total === 0) {
+        if (counter) counter.textContent = 'No eligible members found for this survey.'
+        if (summary) summary.style.display = 'block'
+        if (footer) footer.style.display = 'flex'
+        return
+    }
+
+    for (const member of members) {
+        try {
+            const response = await fetch(
+                `${SUPABASE_URL}/functions/v1/request-otp`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        phone: member.phone,
+                        survey_id: surveyId
+                    })
+                }
+            )
+
+            if (response.ok) {
+                sent++
+            } else {
+                failed++
+            }
+        } catch (err) {
+            console.error('OTP dispatch error for member:', member.id, err)
+            failed++
+        }
+
+        // Update progress
+        const processed = sent + failed
+        const percent = Math.round((processed / total) * 100)
+
+        if (progressBar) progressBar.style.width = `${percent}%`
+        if (counter) counter.textContent = `Sending OTPs... ${processed} of ${total} sent`
+    }
+
+    // Show summary
+    if (summary) summary.style.display = 'block'
+
+    const sentRow = document.getElementById('otp-summary-sent')
+    const failedRow = document.getElementById('otp-summary-failed')
+
+    if (sentRow) {
+        sentRow.querySelector('span').textContent =
+            `${sent} OTP${sent !== 1 ? 's' : ''} sent successfully`
+    }
+
+    if (failedRow && failed > 0) {
+        failedRow.style.display = 'flex'
+        failedRow.querySelector('span').textContent =
+            `${failed} failed to send — members can request manually`
+    }
+
+    if (counter) counter.textContent = 'Dispatch complete.'
+    if (footer) footer.style.display = 'flex'
+}
+
+// ============================================
+// VIEW SURVEY RESULTS
+// ============================================
+async function viewSurveyResults(surveyId) {
+    currentSurveyId = surveyId
+
+    const panel = document.getElementById('survey-results-panel')
+    if (panel) {
+        panel.style.display = 'block'
+        panel.scrollIntoView({ behavior: 'smooth' })
+    }
+
+    document.getElementById('results-survey-title').textContent = 'Loading results...'
+    document.getElementById('results-response-rate').textContent = ''
+    document.getElementById('results-stats').innerHTML = ''
+    document.getElementById('results-questions').innerHTML = ''
+    document.getElementById('results-ward-grid').innerHTML = ''
+    document.getElementById('results-responses-tbody').innerHTML = ''
+
+    try {
+        // Fetch survey with questions
+        const { data: survey, error: surveyError } = await db
+            .from('surveys')
+            .select('*, survey_questions(*)')
+            .eq('id', surveyId)
+            .single()
+
+        if (surveyError) throw surveyError
+
+        const questions = (survey.survey_questions || [])
+            .sort((a, b) => a.order_index - b.order_index)
+
+        // Fetch responses
+        const { data: responses, error: responsesError } = await db
+            .from('survey_responses')
+            .select('*')
+            .eq('survey_id', surveyId)
+            .order('submitted_at', { ascending: false })
+
+        if (responsesError) throw responsesError
+
+        // Fetch answers
+        const responseIds = (responses || []).map(r => r.id)
+        let answers = []
+
+        if (responseIds.length > 0) {
+            const { data: answersData, error: answersError } = await db
+                .from('survey_answers')
+                .select('*')
+                .in('response_id', responseIds)
+
+            if (!answersError) answers = answersData || []
+        }
+
+        // Fetch eligible member count
+        let levelFilter = []
+        if (survey.target_level === 'ward') levelFilter = ['ward']
+        if (survey.target_level === 'agent') levelFilter = ['agent']
+        if (survey.target_level === 'both') levelFilter = ['ward', 'agent']
+
+        const { count: eligibleCount } = await db
+            .from('members')
+            .select('id', { count: 'exact', head: true })
+            .in('level', levelFilter)
+
+        const responseCount = responses ? responses.length : 0
+        const responseRate = eligibleCount > 0
+            ? Math.round((responseCount / eligibleCount) * 100)
+            : 0
+
+        // Render title and rate
+        document.getElementById('results-survey-title').textContent = survey.title
+        document.getElementById('results-response-rate').textContent =
+            `${responseCount} of ${eligibleCount || 0} eligible members responded (${responseRate}%)`
+
+        // Render summary stats
+        renderResultsStats(responseCount, eligibleCount || 0, responseRate, survey)
+
+        // Render per-question aggregates
+        const questionsContainer = document.getElementById('results-questions')
+        if (questionsContainer) {
+            questionsContainer.innerHTML = questions.map(q => {
+                const questionAnswers = answers
+                    .filter(a => a.question_id === q.id)
+                    .map(a => a.answer_text)
+                return renderQuestionAggregate(q, questionAnswers)
+            }).join('')
+        }
+
+        // Render ward breakdown
+        renderWardBreakdown(responses || [])
+
+        // Render responses table
+        renderResponsesTable(responses || [])
+
+    } catch (error) {
+        console.error('View results error:', error)
+        document.getElementById('results-survey-title').textContent = 'Failed to load results.'
+    }
+}
+
+// ============================================
+// RENDER RESULTS STATS
+// ============================================
+function renderResultsStats(responseCount, eligibleCount, responseRate, survey) {
+    const container = document.getElementById('results-stats')
+    if (!container) return
+
+    let targetLabel = 'Both'
+    if (survey.target_level === 'ward') targetLabel = 'Ward Coordinators'
+    if (survey.target_level === 'agent') targetLabel = 'Ward Agents'
+
+    container.innerHTML = `
+        <div class="stat-card">
+            <h3>${responseCount}</h3>
+            <p>Total Responses</p>
+        </div>
+        <div class="stat-card">
+            <h3>${eligibleCount}</h3>
+            <p>Eligible Members</p>
+        </div>
+        <div class="stat-card">
+            <h3>${responseRate}%</h3>
+            <p>Response Rate</p>
+        </div>
+        <div class="stat-card">
+            <h3>${targetLabel}</h3>
+            <p>Target Audience</p>
+        </div>
+    `
+}
+
+// ============================================
+// RENDER QUESTION AGGREGATE
+// ============================================
+function renderQuestionAggregate(question, answers) {
+    const total = answers.length
+
+    let aggregateHTML = ''
+
+    if (question.question_type === 'yes_no') {
+        const yesCount = answers.filter(a => a === 'Yes').length
+        const noCount = answers.filter(a => a === 'No').length
+        const yesPercent = total > 0 ? Math.round((yesCount / total) * 100) : 0
+        const noPercent = total > 0 ? Math.round((noCount / total) * 100) : 0
+
+        aggregateHTML = `
+            <div class="aggregate-bar-row">
+                <span class="aggregate-label">Yes</span>
+                <div class="aggregate-bar-track">
+                    <div class="aggregate-bar-fill success"
+                        style="width:${yesPercent}%"></div>
+                </div>
+                <span class="aggregate-count">${yesCount} (${yesPercent}%)</span>
+            </div>
+            <div class="aggregate-bar-row">
+                <span class="aggregate-label">No</span>
+                <div class="aggregate-bar-track">
+                    <div class="aggregate-bar-fill danger"
+                        style="width:${noPercent}%"></div>
+                </div>
+                <span class="aggregate-count">${noCount} (${noPercent}%)</span>
+            </div>
+        `
+    }
+
+    if (question.question_type === 'multiple_choice') {
+        let options = []
+        try {
+            options = typeof question.options === 'string'
+                ? JSON.parse(question.options)
+                : question.options || []
+        } catch (e) { options = [] }
+
+        aggregateHTML = options.map(option => {
+            const count = answers.filter(a => a === option).length
+            const percent = total > 0 ? Math.round((count / total) * 100) : 0
+            return `
+                <div class="aggregate-bar-row">
+                    <span class="aggregate-label">${option}</span>
+                    <div class="aggregate-bar-track">
+                        <div class="aggregate-bar-fill primary"
+                            style="width:${percent}%"></div>
+                    </div>
+                    <span class="aggregate-count">${count} (${percent}%)</span>
+                </div>
+            `
+        }).join('')
+    }
+
+    if (question.question_type === 'rating') {
+        const numericAnswers = answers.map(a => parseInt(a)).filter(n => !isNaN(n))
+        const average = numericAnswers.length > 0
+            ? (numericAnswers.reduce((sum, n) => sum + n, 0) / numericAnswers.length).toFixed(1)
+            : 'N/A'
+
+        const distribution = [1, 2, 3, 4, 5].map(n => {
+            const count = numericAnswers.filter(a => a === n).length
+            const percent = numericAnswers.length > 0
+                ? Math.round((count / numericAnswers.length) * 100)
+                : 0
+            return { n, count, percent }
+        })
+
+        aggregateHTML = `
+            <div class="rating-average-display">
+                <span class="rating-average-number">${average}</span>
+                <span class="rating-average-label">out of 5</span>
+            </div>
+            ${distribution.map(d => `
+                <div class="aggregate-bar-row">
+                    <span class="aggregate-label">
+                        <i class="fa-solid fa-star" style="color:var(--accent);"></i> ${d.n}
+                    </span>
+                    <div class="aggregate-bar-track">
+                        <div class="aggregate-bar-fill accent"
+                            style="width:${d.percent}%"></div>
+                    </div>
+                    <span class="aggregate-count">${d.count} (${d.percent}%)</span>
+                </div>
+            `).join('')}
+        `
+    }
+
+    if (question.question_type === 'text') {
+        aggregateHTML = `
+            <div class="text-responses-feed">
+                ${answers.length === 0
+                    ? '<p style="color:var(--text-light); font-style:italic;">No text responses yet.</p>'
+                    : answers.map(a => `
+                        <div class="text-response-item">
+                            <i class="fa-solid fa-quote-left" style="color:var(--primary); margin-right:8px;"></i>
+                            ${a}
+                        </div>
+                    `).join('')
+                }
+            </div>
+        `
+    }
+
+    return `
+        <div class="question-aggregate">
+            <div class="question-aggregate-header">
+                <p class="question-aggregate-type">
+                    ${question.question_type.replace('_', ' ').toUpperCase()}
+                    ${question.required ? '' : '<span style="color:var(--text-light); font-size:0.78rem;">(Optional)</span>'}
+                </p>
+                <p class="question-aggregate-text">${question.question_text}</p>
+                <p class="question-aggregate-count">
+                    <i class="fa-solid fa-inbox"></i>
+                    ${total} response${total !== 1 ? 's' : ''}
+                </p>
+            </div>
+            <div class="question-aggregate-body">
+                ${aggregateHTML}
+            </div>
+        </div>
+    `
+}
+
+// ============================================
+// RENDER WARD BREAKDOWN
+// ============================================
+function renderWardBreakdown(responses) {
+    const grid = document.getElementById('results-ward-grid')
+    if (!grid) return
+
+    if (responses.length === 0) {
+        grid.innerHTML = '<p style="color:var(--text-light);">No responses yet.</p>'
+        return
+    }
+
+    const wardCounts = {}
+    responses.forEach(r => {
+        const ward = r.respondent_ward || 'Unknown'
+        wardCounts[ward] = (wardCounts[ward] || 0) + 1
+    })
+
+    grid.innerHTML = Object.entries(wardCounts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([ward, count]) => `
+            <div class="ward-card">
+                <h3>${count}</h3>
+                <p>${ward}</p>
+            </div>
+        `).join('')
+}
+
+// ============================================
+// RENDER RESPONSES TABLE
+// ============================================
+function renderResponsesTable(responses) {
+    const tbody = document.getElementById('results-responses-tbody')
+    const noData = document.getElementById('results-no-responses')
+    if (!tbody) return
+
+    if (responses.length === 0) {
+        tbody.innerHTML = ''
+        if (noData) noData.style.display = 'block'
+        return
+    }
+
+    if (noData) noData.style.display = 'none'
+
+    tbody.innerHTML = responses.map((r, index) => `
+        <tr>
+            <td>${index + 1}</td>
+            <td>${r.respondent_name}</td>
+            <td>${r.respondent_ward || '—'}</td>
+            <td>
+                <span class="level-badge ${r.respondent_level}">
+                    ${r.respondent_level === 'ward' ? 'Ward Coordinator' : 'Ward Agent'}
+                </span>
+            </td>
+            <td>${new Date(r.submitted_at).toLocaleString('en-KE', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            })}</td>
+            <td>
+                <span class="role-badge ${r.sync_status === 'synced' ? 'voter' : 'mobilizer'}">
+                    ${r.sync_status}
+                </span>
+            </td>
+        </tr>
+    `).join('')
+}
+
+// ============================================
+// EXPORT SURVEY CSV
+// ============================================
+async function exportSurveyCSV(surveyId) {
+    if (!surveyId) return
+
+    try {
+        const { data: survey } = await db
+            .from('surveys')
+            .select('*, survey_questions(*)')
+            .eq('id', surveyId)
+            .single()
+
+        const questions = (survey.survey_questions || [])
+            .sort((a, b) => a.order_index - b.order_index)
+
+        const { data: responses } = await db
+            .from('survey_responses')
+            .select('*')
+            .eq('survey_id', surveyId)
+
+        const responseIds = (responses || []).map(r => r.id)
+        let answers = []
+
+        if (responseIds.length > 0) {
+            const { data: answersData } = await db
+                .from('survey_answers')
+                .select('*')
+                .in('response_id', responseIds)
+            answers = answersData || []
+        }
+
+        // Build CSV headers
+        const headers = [
+            'Name',
+            'Phone',
+            'Ward',
+            'Level',
+            'Submitted At',
+            ...questions.map(q => q.question_text)
+        ]
+
+        // Build CSV rows
+        const rows = (responses || []).map(r => {
+            const responseAnswers = answers.filter(a =>
+                a.response_id === r.id
+            )
+
+            const answerMap = {}
+            responseAnswers.forEach(a => {
+                answerMap[a.question_id] = a.answer_text
+            })
+
+            return [
+                r.respondent_name,
+                r.respondent_phone,
+                r.respondent_ward,
+                r.respondent_level,
+                new Date(r.submitted_at).toLocaleString('en-KE'),
+                ...questions.map(q => answerMap[q.id] || '')
+            ]
+        })
+
+        const csv = [headers, ...rows]
+            .map(row => row.map(cell =>
+                `"${String(cell).replace(/"/g, '""')}"`
+            ).join(','))
+            .join('\n')
+
+        const blob = new Blob([csv], { type: 'text/csv' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `survey_${survey.title.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`
+        a.click()
+        URL.revokeObjectURL(url)
+
+    } catch (error) {
+        console.error('Export CSV error:', error)
+    }
+}
+
+// ============================================
+// CLOSE SURVEY
+// ============================================
+async function closeSurvey(surveyId) {
+    if (!confirm('Close this survey? Field agents will no longer be able to access it.')) return
+
+    try {
+        const { error } = await db
+            .from('surveys')
+            .update({ status: 'closed' })
+            .eq('id', surveyId)
+
+        if (error) throw error
+
+        await loadSurveys()
+
+        // Refresh results panel if open for this survey
+        if (currentSurveyId === surveyId) {
+            viewSurveyResults(surveyId)
+        }
+
+    } catch (error) {
+        console.error('Close survey error:', error)
+    }
+}
+
+// ============================================
+// DELETE SURVEY
+// ============================================
+async function deleteSurvey(surveyId, responseCount) {
+    const message = responseCount > 0
+        ? `This will permanently delete this survey and all ${responseCount} response${responseCount !== 1 ? 's' : ''}. This cannot be undone. Continue?`
+        : 'Delete this survey permanently? This cannot be undone.'
+
+    if (!confirm(message)) return
+
+    try {
+        const { error } = await db
+            .from('surveys')
+            .delete()
+            .eq('id', surveyId)
+
+        if (error) throw error
+
+        // Hide results panel if open for deleted survey
+        if (currentSurveyId === surveyId) {
+            const panel = document.getElementById('survey-results-panel')
+            if (panel) panel.style.display = 'none'
+            currentSurveyId = null
+        }
+
+        await loadSurveys()
+
+    } catch (error) {
+        console.error('Delete survey error:', error)
+    }
+}
+
+window.deleteQuestion = deleteQuestion
+window.toggleQuestionType = toggleQuestionType
+window.addChoiceOption = addChoiceOption
+window.removeChoiceOption = removeChoiceOption
+window.viewSurveyResults = viewSurveyResults
+window.closeSurvey = closeSurvey
+window.deleteSurvey = deleteSurvey
