@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard — Vanguard 2027</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="./css/main.css">
+    <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="./css/admin.css">
     <style>
         #post-content {
@@ -423,7 +423,7 @@
                     <div class="form-group">
                         <label>Post Title *</label>
                         <input type="text" id="post-title"
-                            placeholder="e.g. Kiongozi Launches Youth Fund">
+                            placeholder="e.g. John Mwaura Launches Youth Fund">
                     </div>
                     <div class="form-group">
                         <label>Category *</label>
@@ -664,6 +664,202 @@
             </div>
         </div>
     </div>
+    <!-- ======================== -->
+        <!-- TAB 6 — SURVEYS         -->
+        <!-- ======================== -->
+        <div class="tab-section" id="tab-surveys" style="display:none;">
+
+            <!-- SECTION A — CREATE SURVEY -->
+            <section class="admin-form-section">
+                <h2>
+                    <i class="fa-solid fa-plus-circle"></i>
+                    Create New Survey
+                </h2>
+
+                <div class="admin-form-grid">
+                    <div class="form-group">
+                        <label>Survey Title *</label>
+                        <input type="text" id="survey-title"
+                            placeholder="e.g. Ward Voter Sentiment Report — Week 1">
+                    </div>
+                    <div class="form-group">
+                        <label>Target Audience *</label>
+                        <select id="survey-target-level">
+                            <option value="">Select target</option>
+                            <option value="ward">Ward Coordinators Only</option>
+                            <option value="agent">Ward Agents Only</option>
+                            <option value="both">Both Ward Coordinators & Agents</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Description (optional)</label>
+                    <textarea id="survey-description" rows="2"
+                        placeholder="Brief description of what this survey is measuring..."
+                        style="width:100%; padding:12px 16px; border:2px solid var(--border);
+                        border-radius:8px; font-size:0.95rem; font-family:var(--font-main);
+                        resize:vertical; outline:none; transition:border-color 0.3s ease;">
+                    </textarea>
+                </div>
+
+                <!-- QUESTION BUILDER -->
+                <div class="survey-question-builder">
+                    <div class="question-builder-header">
+                        <h3>
+                            <i class="fa-solid fa-list-ol"></i>
+                            Survey Questions
+                        </h3>
+                        <button class="btn-add-question" id="add-question-btn">
+                            <i class="fa-solid fa-plus"></i> Add Question
+                        </button>
+                    </div>
+
+                    <div id="questions-container">
+                        <!-- Question blocks injected here by admin.js -->
+                        <div class="no-questions-placeholder" id="no-questions-placeholder">
+                            <i class="fa-solid fa-circle-info"></i>
+                            Click "Add Question" to start building your survey.
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 24px;">
+                    <button class="btn-primary" id="publish-survey-btn">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        Publish Survey & Send OTPs
+                    </button>
+                </div>
+                <p class="form-feedback" id="survey-create-feedback"></p>
+            </section>
+
+            <!-- SECTION B — ALL SURVEYS -->
+            <section class="admin-form-section">
+                <h2>
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    All Surveys
+                </h2>
+                <div id="surveys-list">
+                    <p style="color:var(--text-light);">No surveys created yet.</p>
+                </div>
+            </section>
+
+            <!-- SECTION C — SURVEY RESULTS PANEL -->
+            <section class="admin-form-section" id="survey-results-panel" style="display:none;">
+
+                <div class="survey-results-header">
+                    <div>
+                        <h2 id="results-survey-title">Survey Results</h2>
+                        <p id="results-response-rate" style="color:var(--text-light); font-size:0.9rem; margin-top:4px;"></p>
+                    </div>
+                    <div style="display:flex; gap:12px; align-items:center;">
+                        <button class="btn-secondary" id="export-survey-csv-btn" style="width:auto;">
+                            <i class="fa-solid fa-file-export"></i> Export CSV
+                        </button>
+                        <button class="btn-secondary" id="close-results-btn" style="width:auto;">
+                            <i class="fa-solid fa-xmark"></i> Close
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SUMMARY STATS -->
+                <div class="survey-results-stats" id="results-stats"></div>
+
+                <!-- PER QUESTION AGGREGATES -->
+                <div id="results-questions"></div>
+
+                <!-- WARD BREAKDOWN -->
+                <div class="survey-ward-breakdown" id="results-ward-breakdown">
+                    <h3>
+                        <i class="fa-solid fa-map-location-dot"></i>
+                        Responses by Ward
+                    </h3>
+                    <div id="results-ward-grid"></div>
+                </div>
+
+                <!-- INDIVIDUAL RESPONSES TABLE -->
+                <div class="admin-table-section" style="padding: 24px 0 0;">
+                    <h3 style="font-size:1.1rem; font-weight:700; color:var(--dark); margin-bottom:16px;">
+                        <i class="fa-solid fa-users"></i>
+                        Individual Responses
+                    </h3>
+                    <div class="table-wrapper">
+                        <table class="supporters-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Ward</th>
+                                    <th>Level</th>
+                                    <th>Submitted</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-responses-tbody"></tbody>
+                        </table>
+                        <p class="no-data" id="results-no-responses" style="display:none;">
+                            No responses yet for this survey.
+                        </p>
+                    </div>
+                </div>
+
+            </section>
+
+        </div>
+
+        <!-- ======================== -->
+        <!-- OTP DISPATCH MODAL      -->
+        <!-- ======================== -->
+        <div class="modal-overlay" id="otp-dispatch-modal" style="display:none;">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <h2>
+                        <i class="fa-solid fa-paper-plane"></i>
+                        Sending OTPs
+                    </h2>
+                </div>
+                <div class="modal-body">
+                    <p style="color:var(--text-light); margin-bottom:20px;">
+                        Sending access codes to eligible team members.
+                        Please do not close this window.
+                    </p>
+
+                    <!-- PROGRESS BAR -->
+                    <div style="background:var(--border); border-radius:6px;
+                        overflow:hidden; height:10px; margin-bottom:12px;">
+                        <div id="otp-dispatch-progress-bar"
+                            style="height:100%; background:var(--primary);
+                            border-radius:6px; width:0%;
+                            transition:width 0.3s ease;">
+                        </div>
+                    </div>
+
+                    <p id="otp-dispatch-counter"
+                        style="text-align:center; font-weight:700;
+                        color:var(--dark); font-size:0.95rem;">
+                        Preparing...
+                    </p>
+
+                    <!-- FINAL SUMMARY — shown after dispatch completes -->
+                    <div id="otp-dispatch-summary" style="display:none; margin-top:20px;">
+                        <div class="otp-summary-row success-row" id="otp-summary-sent">
+                            <i class="fa-solid fa-circle-check"></i>
+                            <span></span>
+                        </div>
+                        <div class="otp-summary-row fail-row" id="otp-summary-failed"
+                            style="display:none;">
+                            <i class="fa-solid fa-circle-xmark"></i>
+                            <span></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" id="otp-dispatch-footer" style="display:none;">
+                    <button class="btn-primary" id="close-otp-dispatch-btn">
+                        <i class="fa-solid fa-circle-check"></i> Done
+                    </button>
+                </div>
+            </div>
+        </div>
 
    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./js/admin.js"></script>
