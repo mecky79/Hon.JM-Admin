@@ -1266,7 +1266,7 @@ window.deleteComment = deleteComment
 window.openContactDetail = openContactDetail
 
 // ============================================
-// TAB 5 — SURVEYS
+// TAB 6 — SURVEYS
 // Add these state variables near the top
 // of admin.js with existing state variables
 // ============================================
